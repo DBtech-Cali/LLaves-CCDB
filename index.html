@@ -356,10 +356,10 @@
     </div>
 
     <script>
-        // Configuración de JSONBin.io - YA CONFIGURADO ✅
+        // Configuración de JSONBin.io - ACTUALIZADA ✅
         const JSONBIN_CONFIG = {
-            BIN_ID: '689baf7fd0ea881f4057aaf5',
-            API_KEY: '$2a$10$Fgey//W9ZgKChlYhLtRPKO2EocppgIRmKycKHwEePGhGeYaTmIUYa',
+            BIN_ID: '689bb48ad0ea881f4057ad68',
+            API_KEY: '$2a$10$uz/rJCmZtow3nmiibDZyBeabXdzuwfznWCv27HhQapE614kCw7cNm',
             BASE_URL: 'https://api.jsonbin.io/v3/b/'
         };
 
@@ -675,23 +675,31 @@
             
             if (checkCloudConfig()) {
                 try {
+                    console.log('🔄 Intentando guardar en la nube...');
+                    
                     const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}${JSONBIN_CONFIG.BIN_ID}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                            'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                            'X-Bin-Versioning': 'false'
                         },
                         body: JSON.stringify(data)
                     });
                     
+                    console.log('📊 Respuesta del servidor:', response.status, response.statusText);
+                    
                     if (response.ok) {
-                        console.log('✅ Datos guardados en la nube');
+                        const result = await response.json();
+                        console.log('✅ Datos guardados en la nube exitosamente');
                         showNotification('☁️ Datos sincronizados en la nube', 'success');
                     } else {
-                        throw new Error('Error al guardar en la nube');
+                        const errorText = await response.text();
+                        console.error('❌ Error del servidor:', response.status, errorText);
+                        throw new Error(`Error ${response.status}: ${errorText}`);
                     }
                 } catch (error) {
-                    console.error('❌ Error guardando en la nube:', error);
+                    console.error('❌ Error completo guardando en la nube:', error);
                     showNotification('⚠️ Error de conexión. Datos guardados localmente.', 'warning');
                 }
             } else {
@@ -703,6 +711,8 @@
         async function loadData() {
             if (checkCloudConfig()) {
                 try {
+                    console.log('🔄 Intentando cargar desde la nube...');
+                    
                     const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}${JSONBIN_CONFIG.BIN_ID}/latest`, {
                         method: 'GET',
                         headers: {
@@ -710,8 +720,12 @@
                         }
                     });
                     
+                    console.log('📊 Respuesta de carga:', response.status, response.statusText);
+                    
                     if (response.ok) {
                         const result = await response.json();
+                        console.log('📦 Datos recibidos:', result);
+                        
                         const data = result.record || {};
                         
                         keyStatus = data.keyStatus || {};
@@ -725,9 +739,12 @@
                         console.log('✅ Datos cargados desde la nube');
                         showNotification('🔄 Datos sincronizados desde la nube', 'success');
                         return;
+                    } else {
+                        const errorText = await response.text();
+                        console.error('❌ Error cargando:', response.status, errorText);
                     }
                 } catch (error) {
-                    console.error('❌ Error cargando desde la nube:', error);
+                    console.error('❌ Error completo cargando desde la nube:', error);
                     showNotification('⚠️ Error de conexión. Cargando datos locales.', 'warning');
                 }
             }
@@ -814,12 +831,12 @@
 
         // Mostrar estado de la nube
         function showFirebaseStatus() {
-            const statusMessage = '✅ Nube configurada correctamente\n☁️ Datos sincronizados automáticamente\n🌐 Accesible desde cualquier dispositivo\n\n📊 Detalles:\n• Servicio: JSONBin.io\n• BIN ID: 689baf...aaf5\n• Estado: Activo\n• Sincronización: Cada 30 segundos';
+            const statusMessage = '✅ Nube configurada correctamente\n☁️ Datos sincronizados automáticamente\n🌐 Accesible desde cualquier dispositivo\n\n📊 Detalles:\n• Servicio: JSONBin.io\n• BIN ID: 689bb48...ad68\n• Estado: Activo\n• Permisos: Completos\n• Sincronización: Cada 30 segundos';
             
             alert(statusMessage);
             
-            console.log('%c☁️ CONFIGURACIÓN COMPLETADA:', 'color: #2ecc71; font-size: 16px; font-weight: bold;');
-            console.log('%c✅ JSONBin configurado correctamente', 'color: #2ecc71;');
+            console.log('%c☁️ CONFIGURACIÓN ACTUALIZADA:', 'color: #2ecc71; font-size: 16px; font-weight: bold;');
+            console.log('%c✅ JSONBin configurado con nuevo API Key', 'color: #2ecc71;');
             console.log('%c🔄 Sincronización automática activa', 'color: #2ecc71;');
             console.log('%c🌐 Datos accesibles desde cualquier dispositivo', 'color: #2ecc71;');
         }
