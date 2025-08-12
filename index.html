@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Préstamos de Llaves</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .keys-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .key-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #333;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .key-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+        }
+
+        .key-button.loaned {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #ddd;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .person-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .person-button {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border: 2px solid transparent;
+            padding: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .person-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #4facfe;
+        }
+
+        .report-section {
+            display: none;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .report-title {
+            color: #333;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .report-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-item .key-info {
+            font-weight: bold;
+            color: #4facfe;
+        }
+
+        .report-item .person-info {
+            color: #666;
+        }
+
+        .report-item .date-info {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .return-button {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            color: #333;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .return-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(255, 154, 158, 0.3);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+
+        .status-available {
+            background-color: #10ac84;
+        }
+
+        .status-loaned {
+            background-color: #ff6b6b;
+        }
+
+        @media (max-width: 768px) {
+            .keys-grid {
+                grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+                gap: 10px;
+            }
+
+            .key-button {
+                width: 50px;
+                height: 50px;
+                font-size: 12px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Control de Préstamos de Llaves</h1>
+            <p>Sistema de gestión y seguimiento de llaves</p>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="showActiveLoans()">📋 Préstamos Activos</button>
+            <button class="control-btn" onclick="showHistory()">📚 Histórico Completo</button>
+            <button class="control-btn" onclick="exportData()">💾 Exportar Datos</button>
+        </div>
+
+        <div class="main-content">
+            <div class="keys-grid" id="keysGrid">
+                <!-- Los botones de llaves se generarán aquí -->
+            </div>
+
+            <div class="report-section" id="activeLoansSection">
+                <h3 class="report-title">📋 Préstamos Activos</h3>
+                <div id="activeLoansContent"></div>
+            </div>
+
+            <div class="report-section" id="historySection">
+                <h3 class="report-title">📚 Histórico de Préstamos</h3>
+                <input type="text" class="search-box" id="historySearch" placeholder="Buscar en histórico..." onkeyup="filterHistory()">
+                <div id="historyContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para selección de persona -->
+    <div id="personModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Seleccionar Persona</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="search-box" id="personSearch" placeholder="Buscar persona..." onkeyup="filterPersons()">
+                <div class="person-grid" id="personGrid">
+                    <!-- Las opciones de personas se generarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Datos del sistema
+        let keyStatus = {}; // {keyNumber: {person: string, loanDate: string, returnDate: null}}
+        let loanHistory = []; // Histórico completo de préstamos
+        let currentKey = null;
+
+        // Lista de 50 personas
+        const persons = [
+            "Ana García", "Carlos López", "María González", "José Martínez", "Laura Rodríguez",
+            "Pedro Sánchez", "Carmen Jiménez", "Francisco Ruiz", "Isabel Moreno", "Antonio Muñoz",
+            "Rosa Álvarez", "Manuel Romero", "Pilar Navarro", "Ángel Torres", "Dolores Domínguez",
+            "Rafael Vázquez", "Mercedes Ramos", "Ignacio Gil", "Concepción Serrano", "Ramón Blanco",
+            "Teresa Molina", "Enrique Castro", "Josefa Ortega", "Alejandro Rubio", "Francisca Delgado",
+            "Tomás Herrera", "Antonia Flores", "Sergio Gallego", "Encarnación Aguilar", "Rubén Cabrera",
+            "Rocío Fernández", "Adrián Prieto", "Amparo Cano", "Víctor Carmona", "Remedios Herrero",
+            "Iván Peña", "Soledad Santana", "Óscar León", "Esperanza Marín", "Nicolás Vega",
+            "Milagros Giménez", "Emilio Cortés", "Purificación Iglesias", "Joaquín Lorenzo", "Asunción Guerrero",
+            "Esteban Mendoza", "Inmaculada Ferrer", "Gonzalo Medina", "Consolación Garrido", "Félix Ibáñez"
+        ];
+
+        // Inicializar la aplicación
+        function initApp() {
+            generateKeyButtons();
+            loadData();
+        }
+
+        // Generar botones de llaves del 1 al 250
+        function generateKeyButtons() {
+            const grid = document.getElementById('keysGrid');
+            for (let i = 1; i <= 250; i++) {
+                const button = document.createElement('button');
+                button.className = 'key-button';
+                button.textContent = i;
+                button.onclick = () => openPersonModal(i);
+                button.id = `key-${i}`;
+                grid.appendChild(button);
+            }
+        }
+
+        // Abrir modal de selección de persona
+        function openPersonModal(keyNumber) {
+            currentKey = keyNumber;
+            const modal = document.getElementById('personModal');
+            const title = document.getElementById('modalTitle');
+            
+            if (keyStatus[keyNumber]) {
+                title.textContent = `Llave ${keyNumber} - Prestada a: ${keyStatus[keyNumber].person}`;
+            } else {
+                title.textContent = `Llave ${keyNumber} - Seleccionar Persona`;
+            }
+            
+            generatePersonButtons();
+            modal.style.display = 'block';
+        }
+
+        // Generar botones de personas
+        function generatePersonButtons() {
+            const grid = document.getElementById('personGrid');
+            grid.innerHTML = '';
+            
+            // Si la llave está prestada, mostrar botón de devolución
+            if (keyStatus[currentKey]) {
+                const returnButton = document.createElement('button');
+                returnButton.className = 'person-button';
+                returnButton.style.background = 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)';
+                returnButton.innerHTML = `<strong>🔄 DEVOLVER LLAVE</strong><br>Prestada a: ${keyStatus[currentKey].person}`;
+                returnButton.onclick = () => returnKey(currentKey);
+                grid.appendChild(returnButton);
+                
+                const separator = document.createElement('div');
+                separator.style.gridColumn = '1 / -1';
+                separator.style.height = '20px';
+                grid.appendChild(separator);
+            }
+            
+            // Mostrar todas las personas
+            persons.forEach(person => {
+                const button = document.createElement('button');
+                button.className = 'person-button';
+                button.textContent = person;
+                button.onclick = () => loanKey(currentKey, person);
+                grid.appendChild(button);
+            });
+        }
+
+        // Filtrar personas en el modal
+        function filterPersons() {
+            const search = document.getElementById('personSearch').value.toLowerCase();
+            const buttons = document.querySelectorAll('#personGrid .person-button');
+            
+            buttons.forEach(button => {
+                if (button.textContent.toLowerCase().includes(search)) {
+                    button.style.display = 'block';
+                } else {
+                    button.style.display = 'none';
+                }
+            });
+        }
+
+        // Prestar llave
+        function loanKey(keyNumber, person) {
+            const loanDate = new Date().toLocaleString('es-ES');
+            
+            // Si ya está prestada, primero devolver
+            if (keyStatus[keyNumber]) {
+                returnKey(keyNumber);
+            }
+            
+            // Registrar nuevo préstamo
+            keyStatus[keyNumber] = {
+                person: person,
+                loanDate: loanDate,
+                returnDate: null
+            };
+            
+            // Agregar al histórico
+            loanHistory.push({
+                keyNumber: keyNumber,
+                person: person,
+                loanDate: loanDate,
+                returnDate: null,
+                action: 'prestamo'
+            });
+            
+            updateKeyButton(keyNumber);
+            saveData();
+            closeModal();
+            
+            // Mostrar notificación
+            showNotification(`🔑 Llave ${keyNumber} prestada a ${person}`, 'success');
+        }
+
+        // Devolver llave
+        function returnKey(keyNumber) {
+            if (!keyStatus[keyNumber]) return;
+            
+            const returnDate = new Date().toLocaleString('es-ES');
+            const person = keyStatus[keyNumber].person;
+            const loanDate = keyStatus[keyNumber].loanDate;
+            
+            // Agregar devolución al histórico
+            loanHistory.push({
+                keyNumber: keyNumber,
+                person: person,
+                loanDate: loanDate,
+                returnDate: returnDate,
+                action: 'devolucion'
+            });
+            
+            // Eliminar del estado activo
+            delete keyStatus[keyNumber];
+            
+            updateKeyButton(keyNumber);
+            saveData();
+            closeModal();
+            
+            // Mostrar notificación
+            showNotification(`🔄 Llave ${keyNumber} devuelta por ${person}`, 'success');
+        }
+
+        // Actualizar apariencia del botón de llave
+        function updateKeyButton(keyNumber) {
+            const button = document.getElementById(`key-${keyNumber}`);
+            if (keyStatus[keyNumber]) {
+                button.classList.add('loaned');
+                button.title = `Prestada a: ${keyStatus[keyNumber].person}\nFecha: ${keyStatus[keyNumber].loanDate}`;
+            } else {
+                button.classList.remove('loaned');
+                button.title = `Llave ${keyNumber} - Disponible`;
+            }
+        }
+
+        // Mostrar préstamos activos
+        function showActiveLoans() {
+            hideAllReports();
+            const section = document.getElementById('activeLoansSection');
+            const content = document.getElementById('activeLoansContent');
+            
+            content.innerHTML = '';
+            
+            const activeLoans = Object.keys(keyStatus).map(key => ({
+                key: parseInt(key),
+                ...keyStatus[key]
+            })).sort((a, b) => a.key - b.key);
+            
+            if (activeLoans.length === 0) {
+                content.innerHTML = '<div class="report-item"><span>📭 No hay préstamos activos en este momento</span></div>';
+            } else {
+                activeLoans.forEach(loan => {
+                    const item = document.createElement('div');
+                    item.className = 'report-item';
+                    item.innerHTML = `
+                        <div>
+                            <span class="key-info">🔑 Llave ${loan.key}</span>
+                            <span class="status-indicator status-loaned"></span>
+                        </div>
+                        <div class="person-info">👤 ${loan.person}</div>
+                        <div class="date-info">📅 ${loan.loanDate}</div>
+                        <button class="return-button" onclick="returnKey(${loan.key}); showActiveLoans();">🔄 Devolver</button>
+                    `;
+                    content.appendChild(item);
+                });
+            }
+            
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Mostrar histórico
+        function showHistory() {
+            hideAllReports();
+            const section = document.getElementById('historySection');
+            updateHistoryContent();
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Actualizar contenido del histórico
+        function updateHistoryContent() {
+            const content = document.getElementById('historyContent');
+            content.innerHTML = '';
+            
+            if (loanHistory.length === 0) {
+                content.innerHTML = '<div class="report-item"><span>📚 No hay registros en el histórico aún</span></div>';
+                return;
+            }
+
+            const sortedHistory = [...loanHistory].sort((a, b) => {
+                const dateA = new Date(a.loanDate.split(', ').reverse().join(' '));
+                const dateB = new Date(b.loanDate.split(', ').reverse().join(' '));
+                return dateB - dateA;
+            });
+            
+            sortedHistory.forEach(record => {
+                const item = document.createElement('div');
+                item.className = 'report-item';
+                
+                const actionText = record.action === 'prestamo' ? 'Préstamo' : 'Devolución';
+                const actionIcon = record.action === 'prestamo' ? '📤' : '📥';
+                const statusClass = record.action === 'prestamo' ? 'status-loaned' : 'status-available';
+                
+                item.innerHTML = `
+                    <div>
+                        <span class="key-info">${actionIcon} Llave ${record.keyNumber}</span>
+                        <span class="status-indicator ${statusClass}"></span>
+                    </div>
+                    <div class="person-info">👤 ${record.person}</div>
+                    <div class="date-info">
+                        📅 ${actionText}: ${record.loanDate}
+                        ${record.returnDate ? `<br>🔄 Devolución: ${record.returnDate}` : ''}
+                    </div>
+                `;
+                content.appendChild(item);
+            });
+        }
+
+        // Filtrar histórico
+        function filterHistory() {
+            const search = document.getElementById('historySearch').value.toLowerCase();
+            const items = document.querySelectorAll('#historyContent .report-item');
+            
+            items.forEach(item => {
+                if (item.textContent.toLowerCase().includes(search)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Ocultar todos los reportes
+        function hideAllReports() {
+            document.getElementById('activeLoansSection').style.display = 'none';
+            document.getElementById('historySection').style.display = 'none';
+        }
+
+        // Cerrar modal
+        function closeModal() {
+            document.getElementById('personModal').style.display = 'none';
+            document.getElementById('personSearch').value = '';
+        }
+
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('personModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Guardar datos en localStorage
+        function saveData() {
+            const data = {
+                keyStatus: keyStatus,
+                loanHistory: loanHistory
+            };
+            // Simular guardado - en producción usar localStorage
+            console.log('Datos guardados:', data);
+        }
+
+        // Cargar datos de localStorage
+        function loadData() {
+            // Simular carga - en producción usar localStorage
+            // Actualizar botones según el estado cargado
+            Object.keys(keyStatus).forEach(keyNumber => {
+                updateKeyButton(parseInt(keyNumber));
+            });
+        }
+
+        // Exportar datos
+        function exportData() {
+            const data = {
+                prestamosActivos: keyStatus,
+                historico: loanHistory,
+                fechaExportacion: new Date().toLocaleString('es-ES')
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `prestamos_llaves_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            showNotification('Datos exportados exitosamente', 'success');
+        }
+
+        // Mostrar notificaciones
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#10ac84' : '#ff6b6b'};
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                z-index: 10000;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Inicializar aplicación al cargar la página
+        window.onload = initApp;
+    </script>
+</body>
+</html>
