@@ -349,7 +349,7 @@
         <div class="controls">
             <button class="control-btn" onclick="showActiveLoans()">📋 Préstamos Activos</button>
             <button class="control-btn" onclick="showHistory()">📚 Histórico Completo</button>
-            <button class="control-btn" onclick="exportData()">💾 Exportar Datos</button>
+            <button class="control-btn" onclick="showLocations()">📍 Ubicaciones</button>
         </div>
 
         <div class="main-content">
@@ -372,8 +372,21 @@
         </div>
     </div>
 
-    <!-- Modal para selección de persona -->
-    <div id="personModal" class="modal">
+    <!-- Modal para ubicaciones -->
+    <div id="locationsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📍 Ubicaciones de Llaves</h2>
+                <span class="close" onclick="closeLocationsModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="search-box" id="locationSearch" placeholder="Buscar ubicación o número de llave..." onkeyup="filterLocations()">
+                <div id="locationsContent">
+                    <!-- Las ubicaciones se generarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Seleccionar Persona</h2>
@@ -414,6 +427,252 @@
         let loanHistory = [];
         let currentKey = null;
         let isConnected = false;
+
+        // Lista de ubicaciones
+        const locations = {
+            1: "Dirección",
+            2: "Contabilidad",
+            3: "Llavero general",
+            4: "Administración",
+            5: "Gestión Humana",
+            6: "Baño Admin Mujeres",
+            7: "Baño Admin Hombres",
+            8: "ETDH",
+            9: "Servidor",
+            10: "Pastoral",
+            11: "Comunicaciones",
+            12: "SST y Ambiental",
+            13: "Coordinación ETDH",
+            14: "Oficina",
+            15: "Oficina",
+            16: "Calidad",
+            17: "SGI",
+            18: "Deposito SST",
+            "18.1": "Deposito SST - Reja",
+            19: "Baño SST",
+            20: "Recepción",
+            21: "Capilla",
+            22: "Deposito Deportivo",
+            23: "Nutrición EJC",
+            24: "Psicología EJC",
+            25: "Coordinación EJC",
+            26: "Odontología",
+            27: "Baño EJC",
+            28: "Pedagogía EJC",
+            29: "Salón EJC",
+            "29.1": "Bodega I EJC",
+            "29.2": "Bodega 2 EJC",
+            30: "Entrada Principal",
+            31: "Estación Eléctrica",
+            32: "Entrada Cocina PAZ",
+            33: "Emisora",
+            34: "Cafetería - Patio Central",
+            35: "Enfermería",
+            36: "Mantenimiento",
+            37: "RPP",
+            38: "Cafetín",
+            39: "Archivo",
+            "39.1": "Archivo - Oficina",
+            "39.2": "Archivo - Audiovisuales",
+            40: "Audiovisuales",
+            41: "SHUT",
+            42: "Salón 1",
+            43: "Puerta lateral T. Mecánica",
+            44: "Almacén General",
+            45: "Bodega Aseadores",
+            46: "Vestier Aseadores",
+            47: "Escuela de Artes DB",
+            "47.1": "Escuela de Artes DB - Salón Interno",
+            48: "Salón Teoría 9",
+            49: "Deposito de pastoral",
+            50: "Salón Teoría 8",
+            51: "Salón Teoría 7",
+            52: "Salón Teoría 6",
+            53: "Salón Teoría 5",
+            54: "Cuarto de Aseo",
+            55: "Salón Teoría 2",
+            56: "Salón Teoría 3",
+            57: "Salón Teoría 4",
+            58: "Salón Domingo Savio",
+            59: "Taller Electricidad",
+            "59.1": "T. Electricidad - Oficina",
+            "59.2": "T. Electricidad - Deposito",
+            60: "Salón Teoría 10",
+            61: "Taller Automatización",
+            "61.1": "T. Automatización - Salón",
+            "61.2": "T. Automatización - Bodega 1",
+            "61.3": "T. Automatización - Bodega 2",
+            "61.4": "T. Automatización - Neumática",
+            "61.5": "T. Automatización - Bodega 3",
+            62: "Cafetín 2° piso",
+            63: "T. Automotriz - Entrada posterior 1",
+            64: "T. Automotriz - Entrada posterior 2",
+            65: "Depósito Materiales",
+            67: "Taller de Mecánica Industrial",
+            68: "T. Mecánica - Puerta posterior",
+            69: "T. Mecánica - Depósito",
+            71: "T. Automotriz - Entrada 2",
+            72: "Taller Automotriz",
+            73: "T. Automotriz - Entrada 3",
+            74: "Mecánica Automotriz Portón 1 y 2",
+            75: "T. Automotriz - Herramientas 1",
+            76: "T. Automotriz - Cuarto Eléctrico",
+            77: "T. Automotriz - Alineación",
+            78: "T. Automotriz - Herramientas 2",
+            79: "Taller Soldadura",
+            80: "T. Soldadura - Puerta lateral",
+            81: "T. Soldadura - Puerta trasera",
+            82: "T. Soldadura - Depósito",
+            83: "T. Soldadura - Ventanilla",
+            84: "Depósito de Pinturas",
+            85: "Reciclaje",
+            86: "Valdocco - Sala Sistemas",
+            87: "Valdocco - Biblioteca",
+            88: "Valdocco - Deposito",
+            89: "Taller de confecciones",
+            90: "Taller de confecciones 2",
+            91: "Entrada Cocina para la Paz",
+            "91.1": "Taller de Cocina",
+            "91.2": "Oficina Jefe de Cocina",
+            "91.3": "Aula de Formación I",
+            "91.4": "Cocina - Catering",
+            "91.5": "Aula de Formación II",
+            "91.6": "Aula de formación III",
+            "91.7": "Bodega Catering",
+            "91.8": "Reja trasera",
+            "91.9": "Conexión a Cocina General",
+            92: "Cocina General",
+            "92.1": "Cocina - Candado Porton",
+            "92.2": "Cocina - Binestarina",
+            "92.3": "Cocina - Secos",
+            "92.4": "Cocina - Vestier",
+            "92.5": "Cocina - Aseo",
+            "92.6": "Cocina - Conexión Paz",
+            "92.7": "Cocina - Menaje",
+            "92.8": "Cocina - Almacenamiento",
+            "92.9": "Cocina - Cuartos Frios",
+            "92.10": "Cocina - Salida lateral",
+            "92.11": "Cocina - Tablero eléctrico",
+            93: "Valdocco - Dormitorio Mujeres",
+            "93.1": "Valdocco - Dormitorio Mujeres Vidrio",
+            "93.2": "Valdocco - Patio y Baños Mujeres",
+            "93.3": "Valdocco - Baño Disc Mujeres",
+            94: "Valdocco - Entrada Principal",
+            "94.1": "Valdocco - Lava traperos",
+            95: "Valdocco - Dormitorio Hombres 1",
+            "95.1": "Valdocco - Dormitorio Hombres Vidrio",
+            "95.2": "Valdocco - Patio y Baños hombres",
+            "95.3": "Valdocco - Baño Disc Hombres",
+            "95.4": "Valdocco - Cuarto de Salud",
+            96: "Valdocco - Dormitorio Hombres 2",
+            97: "Valdocco - Habitación Educador",
+            98: "Valdocco - Baños 2° Piso",
+            99: "I Becchi (Techos)",
+            100: "I Becchi - Entrada",
+            101: "Habitación 101",
+            102: "Habitación 102",
+            103: "I Becchi - Sala TV",
+            104: "Habitación 104",
+            105: "Habitación 105",
+            106: "Habitación 106",
+            107: "Habitación 107",
+            108: "Habitación 108",
+            109: "Habitación 109",
+            110: "Habitación 110",
+            111: "Habitación 111",
+            112: "I Becchi - Balcón",
+            113: "Casa SDB",
+            114: "Habitación 1",
+            115: "Habitación 2",
+            116: "Baño Social SDB",
+            117: "Habitación 3",
+            119: "Patio Casa SDB",
+            120: "Entrada Patio Casa SDB",
+            121: "Capilla",
+            122: "Habitación 4",
+            123: "Habitación 5",
+            124: "Baño Social SDB 2° Piso",
+            125: "Baño EMJ",
+            126: "Cuarto Eléctrico",
+            127: "Salón EMJ I",
+            128: "Salón EMJ II",
+            129: "TS y pedagogía EMJ",
+            130: "Coordinación EMJ",
+            131: "Coordinación CV",
+            132: "Psicología CV",
+            133: "Salón teoría CV",
+            134: "Macondo EMJ",
+            135: "Pedagogía CV",
+            136: "Baño CV",
+            137: "Baño Mujeres 2° piso",
+            138: "Depósito baño mujeres",
+            139: "Sala de sistemas 1",
+            140: "Sala de sistemas 2",
+            141: "Sala de sistemas 3",
+            142: "Sala de sistemas 4",
+            143: "Sala de sistemas 5",
+            144: "Sala de sistemas 6",
+            145: "Baño Hombres 2° piso",
+            147: "Taller Sistemas",
+            148: "T. Sistemas - Deposito",
+            149: "T. Sistemas - Deposito 2",
+            150: "T. Sistemas - Oficina 2",
+            151: "T. Sistemas - Oficina",
+            152: "Salón Mauxi - Entrada",
+            153: "Auditorio Mauxi",
+            154: "T. Sistemas - Deposito 3",
+            155: "Salón Mauxi - Depósito",
+            156: "Auditorio Mauxi - Depósito",
+            157: "Aula 1",
+            158: "Aula 2",
+            159: "Aula 3",
+            160: "Candado Entrada",
+            161: "Garita Portería",
+            162: "Vestier Portería",
+            163: "Portón Principal",
+            164: "Portería - entrada vehículos",
+            165: "Portón Carrera 33",
+            166: "Garita Portería Crr 33",
+            168: "Archivo EMJ",
+            169: "Baño Equipo EMJ",
+            170: "Nutrición EMJ",
+            171: "Psicología EMJ",
+            172: "Trabajo Social CV",
+            173: "Nutrición CV",
+            174: "Contador Electrico",
+            184: "Innovación - Cuarto Eléctrico",
+            185: "Innovación - Cuarto Aseo",
+            186: "Innovación - Ingreso Patio",
+            187: "Innovación - Baño Social",
+            188: "Innovación - Dormitorio Baño",
+            189: "Innovación - Dormitorio",
+            "189.1": "Innovación - Dormitorio Patio",
+            190: "Innovación - Dormitorio2",
+            191: "Innovación - Peluquería",
+            "191.1": "Innovación - Peluquería Patio",
+            192: "Innovación - Deporte",
+            "192.1": "Innovación - Deporte Patio",
+            193: "Innovación - Deporte2",
+            194: "Innovación - Deporte3",
+            195: "Innovación - Arte",
+            "195.1": "Innovación - Arte Patio",
+            196: "Innovación - Arte2",
+            197: "Innovación - Arte3",
+            198: "Innovación - Joyería",
+            "198.1": "Innovación - Joyería Deposito",
+            199: "Innovación - Joyeria2",
+            200: "Innovación - Patio 1",
+            201: "Innovación - Coworking",
+            "201.1": "Innovación - Coworking Deposito",
+            "201.2": "Innovación - Coworking Patios",
+            202: "Innovación - Coworking2",
+            203: "Innovación - Baño Mujeres",
+            204: "Innovación - Patio 2",
+            205: "Innovación - Baño Hombres",
+            206: "Innovación - Eco Salón",
+            "206.1": "Innovación - Eco Salón Patio",
+            207: "Innovación - Eco Salón2"
+        };
 
         // Lista de 50 personas
         const persons = [
@@ -826,38 +1085,95 @@
 
         // Cerrar modal al hacer clic fuera
         window.onclick = function(event) {
-            const modal = document.getElementById('personModal');
-            if (event.target === modal) {
+            const personModal = document.getElementById('personModal');
+            const locationsModal = document.getElementById('locationsModal');
+            
+            if (event.target === personModal) {
                 closeModal();
+            } else if (event.target === locationsModal) {
+                closeLocationsModal();
             }
         };
 
-        // Exportar datos
-        window.exportData = function() {
-            if (!isConnected) {
-                showNotification('No hay conexión a internet. Intenta más tarde.', 'error');
-                return;
-            }
+        // Mostrar ubicaciones
+        function showLocations() {
+            const modal = document.getElementById('locationsModal');
+            const content = document.getElementById('locationsContent');
+            
+            content.innerHTML = '';
+            
+            // Crear lista de ubicaciones ordenadas por número
+            const sortedLocations = Object.keys(locations).sort((a, b) => {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+                return numA - numB;
+            });
+            
+            sortedLocations.forEach(keyNumber => {
+                const item = document.createElement('div');
+                item.className = 'report-item';
+                
+                // Verificar si la llave está prestada
+                const isLoaned = keyStatus[keyNumber];
+                const statusClass = isLoaned ? 'status-loaned' : 'status-available';
+                const statusText = isLoaned ? `Prestada a: ${keyStatus[keyNumber].person}` : 'Disponible';
+                const statusIcon = isLoaned ? '🔒' : '🔓';
+                
+                item.innerHTML = `
+                    <div>
+                        <span class="key-info">${statusIcon} Llave ${keyNumber}</span>
+                        <span class="status-indicator ${statusClass}"></span>
+                    </div>
+                    <div class="person-info">📍 ${locations[keyNumber]}</div>
+                    <div class="date-info">${statusText}</div>
+                `;
+                
+                // Si está prestada, agregar botón para abrir modal de persona
+                if (isLoaned) {
+                    const actionButton = document.createElement('button');
+                    actionButton.className = 'return-button';
+                    actionButton.textContent = '👁️ Ver';
+                    actionButton.onclick = () => {
+                        closeLocationsModal();
+                        openPersonModal(parseInt(keyNumber));
+                    };
+                    item.appendChild(actionButton);
+                }
+                
+                content.appendChild(item);
+            });
+            
+            modal.style.display = 'block';
+        }
 
-            const data = {
-                prestamosActivos: keyStatus,
-                historico: loanHistory,
-                fechaExportacion: new Date().toLocaleString('es-ES'),
-                totalLlavesDisponibles: 250 - Object.keys(keyStatus).length,
-                totalLlavesPrestadas: Object.keys(keyStatus).length
-            };
+        // Filtrar ubicaciones
+        window.filterLocations = function() {
+            const search = document.getElementById('locationSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#locationsContent .report-item');
             
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const url = URL.createObjectURL(dataBlob);
-            
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `prestamos_llaves_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            
-            showNotification('📊 Datos exportados exitosamente', 'success');
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(search)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         };
+
+        // Cerrar modal de ubicaciones
+        window.closeLocationsModal = function() {
+            document.getElementById('locationsModal').style.display = 'none';
+            document.getElementById('locationSearch').value = '';
+            // Mostrar todos los elementos de nuevo
+            const items = document.querySelectorAll('#locationsContent .report-item');
+            items.forEach(item => {
+                item.style.display = 'flex';
+            });
+        };
+
+        // Hacer función global
+        window.showLocations = showLocations;
 
         // Mostrar notificaciones
         function showNotification(message, type) {
