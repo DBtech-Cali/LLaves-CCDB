@@ -45,6 +45,26 @@
             opacity: 0.9;
         }
 
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 172, 132, 0.9);
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(255, 107, 107, 0.9);
+            color: white;
+        }
+
         .controls {
             padding: 30px;
             background: #f8f9fa;
@@ -282,6 +302,12 @@
             background-color: #ff6b6b;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
         @media (max-width: 768px) {
             .keys-grid {
                 grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
@@ -303,14 +329,21 @@
                 width: 100%;
                 max-width: 300px;
             }
+
+            .connection-status {
+                position: static;
+                margin: 10px auto;
+                width: fit-content;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <div class="connection-status" id="connectionStatus">Conectando...</div>
             <h1>🔑 Control de Préstamos de Llaves</h1>
-            <p>Sistema de gestión y seguimiento de llaves</p>
+            <p>Sistema de gestión y seguimiento de llaves con sincronización en tiempo real</p>
         </div>
 
         <div class="controls">
@@ -320,7 +353,9 @@
         </div>
 
         <div class="main-content">
-            <div class="keys-grid" id="keysGrid">
+            <div class="loading" id="loadingIndicator">Cargando datos...</div>
+            
+            <div class="keys-grid" id="keysGrid" style="display: none;">
                 <!-- Los botones de llaves se generarán aquí -->
             </div>
 
@@ -330,7 +365,7 @@
             </div>
 
             <div class="report-section" id="historySection">
-                <h3 class="report-title">📚 Histórico de Préstamos</h3>
+                <h3 class="report-title">📚 Histórico de Préstamos (Último Mes)</h3>
                 <input type="text" class="search-box" id="historySearch" placeholder="Buscar en histórico..." onkeyup="filterHistory()">
                 <div id="historyContent"></div>
             </div>
@@ -353,11 +388,32 @@
         </div>
     </div>
 
-    <script>
-        // Datos del sistema
-        let keyStatus = {}; // {keyNumber: {person: string, loanDate: string, returnDate: null}}
-        let loanHistory = []; // Histórico completo de préstamos
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Importar Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue, push, remove, orderByChild, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvoqrko9FUHrGzAgov1HEcHZRHJDsn9Qo",
+            authDomain: "ccdb-llaves.firebaseapp.com",
+            databaseURL: "https://ccdb-llaves-default-rtdb.firebaseio.com",
+            projectId: "ccdb-llaves",
+            storageBucket: "ccdb-llaves.firebasestorage.app",
+            messagingSenderId: "783029748907",
+            appId: "1:783029748907:web:2a1a65c5d67d32240ea3ee"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Variables globales
+        let keyStatus = {};
+        let loanHistory = [];
         let currentKey = null;
+        let isConnected = false;
 
         // Lista de 50 personas
         const persons = [
@@ -374,14 +430,101 @@
         ];
 
         // Inicializar la aplicación
-        function initApp() {
-            generateKeyButtons();
-            loadData();
+        async function initApp() {
+            try {
+                generateKeyButtons();
+                await setupFirebaseListeners();
+                hideLoading();
+                updateConnectionStatus(true);
+            } catch (error) {
+                console.error('Error inicializando la app:', error);
+                updateConnectionStatus(false);
+                showNotification('Error de conexión. Reintentando...', 'error');
+                setTimeout(initApp, 5000);
+            }
+        }
+
+        // Configurar listeners de Firebase
+        async function setupFirebaseListeners() {
+            // Listener para préstamos activos
+            const activeLoansRef = ref(database, 'activeLoans');
+            onValue(activeLoansRef, (snapshot) => {
+                const data = snapshot.val();
+                keyStatus = data || {};
+                updateAllKeyButtons();
+                updateConnectionStatus(true);
+            }, (error) => {
+                console.error('Error en listener de préstamos activos:', error);
+                updateConnectionStatus(false);
+            });
+
+            // Listener para historial (último mes)
+            const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            const historyRef = query(
+                ref(database, 'loanHistory'), 
+                orderByChild('timestamp'),
+                limitToLast(1000)
+            );
+            
+            onValue(historyRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    loanHistory = Object.values(data)
+                        .filter(record => record.timestamp >= oneMonthAgo)
+                        .sort((a, b) => b.timestamp - a.timestamp);
+                } else {
+                    loanHistory = [];
+                }
+            }, (error) => {
+                console.error('Error en listener de historial:', error);
+            });
+
+            // Limpiar historial antiguo periódicamente
+            await cleanOldHistory();
+        }
+
+        // Limpiar historial antiguo (mayor a 1 mes)
+        async function cleanOldHistory() {
+            try {
+                const historyRef = ref(database, 'loanHistory');
+                const snapshot = await get(historyRef);
+                const data = snapshot.val();
+                
+                if (data) {
+                    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                    const promises = [];
+                    
+                    Object.keys(data).forEach(key => {
+                        if (data[key].timestamp < oneMonthAgo) {
+                            promises.push(remove(ref(database, `loanHistory/${key}`)));
+                        }
+                    });
+                    
+                    await Promise.all(promises);
+                    console.log('Historial antiguo limpiado');
+                }
+            } catch (error) {
+                console.error('Error limpiando historial:', error);
+            }
+        }
+
+        // Actualizar estado de conexión
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.textContent = '🟢 Conectado';
+                status.className = 'connection-status connected';
+            } else {
+                status.textContent = '🔴 Sin conexión';
+                status.className = 'connection-status disconnected';
+            }
         }
 
         // Generar botones de llaves del 1 al 250
         function generateKeyButtons() {
             const grid = document.getElementById('keysGrid');
+            grid.innerHTML = '';
             for (let i = 1; i <= 250; i++) {
                 const button = document.createElement('button');
                 button.className = 'key-button';
@@ -392,8 +535,40 @@
             }
         }
 
+        // Actualizar todos los botones de llaves
+        function updateAllKeyButtons() {
+            for (let i = 1; i <= 250; i++) {
+                updateKeyButton(i);
+            }
+        }
+
+        // Actualizar apariencia del botón de llave
+        function updateKeyButton(keyNumber) {
+            const button = document.getElementById(`key-${keyNumber}`);
+            if (!button) return;
+
+            if (keyStatus[keyNumber]) {
+                button.classList.add('loaned');
+                button.title = `Prestada a: ${keyStatus[keyNumber].person}\nFecha: ${new Date(keyStatus[keyNumber].loanDate).toLocaleString('es-ES')}`;
+            } else {
+                button.classList.remove('loaned');
+                button.title = `Llave ${keyNumber} - Disponible`;
+            }
+        }
+
+        // Ocultar indicador de carga
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('keysGrid').style.display = 'grid';
+        }
+
         // Abrir modal de selección de persona
         function openPersonModal(keyNumber) {
+            if (!isConnected) {
+                showNotification('No hay conexión a internet. Intenta más tarde.', 'error');
+                return;
+            }
+
             currentKey = keyNumber;
             const modal = document.getElementById('personModal');
             const title = document.getElementById('modalTitle');
@@ -453,75 +628,89 @@
         }
 
         // Prestar llave
-        function loanKey(keyNumber, person) {
-            const loanDate = new Date().toLocaleString('es-ES');
-            
-            // Si ya está prestada, primero devolver
-            if (keyStatus[keyNumber]) {
-                returnKey(keyNumber);
+        async function loanKey(keyNumber, person) {
+            if (!isConnected) {
+                showNotification('No hay conexión a internet. Intenta más tarde.', 'error');
+                return;
             }
-            
-            // Registrar nuevo préstamo
-            keyStatus[keyNumber] = {
-                person: person,
-                loanDate: loanDate,
-                returnDate: null
-            };
-            
-            // Agregar al histórico
-            loanHistory.push({
-                keyNumber: keyNumber,
-                person: person,
-                loanDate: loanDate,
-                returnDate: null,
-                action: 'prestamo'
-            });
-            
-            updateKeyButton(keyNumber);
-            saveData();
-            closeModal();
-            
-            // Mostrar notificación
-            showNotification(`🔑 Llave ${keyNumber} prestada a ${person}`, 'success');
+
+            try {
+                const now = Date.now();
+                const loanDate = new Date(now).toLocaleString('es-ES');
+                
+                // Si ya está prestada, primero devolver
+                if (keyStatus[keyNumber]) {
+                    await returnKey(keyNumber);
+                }
+                
+                // Registrar nuevo préstamo
+                const loanData = {
+                    person: person,
+                    loanDate: loanDate,
+                    timestamp: now,
+                    returnDate: null
+                };
+
+                // Actualizar préstamos activos
+                await set(ref(database, `activeLoans/${keyNumber}`), loanData);
+                
+                // Agregar al historial
+                const historyData = {
+                    keyNumber: keyNumber,
+                    person: person,
+                    loanDate: loanDate,
+                    timestamp: now,
+                    returnDate: null,
+                    action: 'prestamo'
+                };
+                
+                await push(ref(database, 'loanHistory'), historyData);
+                
+                closeModal();
+                showNotification(`🔑 Llave ${keyNumber} prestada a ${person}`, 'success');
+                
+            } catch (error) {
+                console.error('Error prestando llave:', error);
+                showNotification('Error al prestar la llave. Intenta de nuevo.', 'error');
+            }
         }
 
         // Devolver llave
-        function returnKey(keyNumber) {
-            if (!keyStatus[keyNumber]) return;
-            
-            const returnDate = new Date().toLocaleString('es-ES');
-            const person = keyStatus[keyNumber].person;
-            const loanDate = keyStatus[keyNumber].loanDate;
-            
-            // Agregar devolución al histórico
-            loanHistory.push({
-                keyNumber: keyNumber,
-                person: person,
-                loanDate: loanDate,
-                returnDate: returnDate,
-                action: 'devolucion'
-            });
-            
-            // Eliminar del estado activo
-            delete keyStatus[keyNumber];
-            
-            updateKeyButton(keyNumber);
-            saveData();
-            closeModal();
-            
-            // Mostrar notificación
-            showNotification(`🔄 Llave ${keyNumber} devuelta por ${person}`, 'success');
-        }
+        async function returnKey(keyNumber) {
+            if (!isConnected) {
+                showNotification('No hay conexión a internet. Intenta más tarde.', 'error');
+                return;
+            }
 
-        // Actualizar apariencia del botón de llave
-        function updateKeyButton(keyNumber) {
-            const button = document.getElementById(`key-${keyNumber}`);
-            if (keyStatus[keyNumber]) {
-                button.classList.add('loaned');
-                button.title = `Prestada a: ${keyStatus[keyNumber].person}\nFecha: ${keyStatus[keyNumber].loanDate}`;
-            } else {
-                button.classList.remove('loaned');
-                button.title = `Llave ${keyNumber} - Disponible`;
+            if (!keyStatus[keyNumber]) return;
+
+            try {
+                const now = Date.now();
+                const returnDate = new Date(now).toLocaleString('es-ES');
+                const person = keyStatus[keyNumber].person;
+                const loanDate = keyStatus[keyNumber].loanDate;
+                
+                // Agregar devolución al historial
+                const historyData = {
+                    keyNumber: keyNumber,
+                    person: person,
+                    loanDate: loanDate,
+                    returnDate: returnDate,
+                    timestamp: now,
+                    action: 'devolucion'
+                };
+                
+                await push(ref(database, 'loanHistory'), historyData);
+                
+                // Eliminar del estado activo
+                await remove(ref(database, `activeLoans/${keyNumber}`));
+                
+                closeModal();
+                showNotification(`🔄 Llave ${keyNumber} devuelta por ${person}`, 'success');
+                
+            } catch (error) {
+                console.error('Error devolviendo llave:', error);
+                showNotification('Error al devolver la llave. Intenta de nuevo.', 'error');
             }
         }
 
@@ -539,7 +728,7 @@
             })).sort((a, b) => a.key - b.key);
             
             if (activeLoans.length === 0) {
-                content.innerHTML = '<div class="report-item"><span>📭 No hay préstamos activos en este momento</span></div>';
+                content.innerHTML = '<div class="report-item"><span>🔭 No hay préstamos activos en este momento</span></div>';
             } else {
                 activeLoans.forEach(loan => {
                     const item = document.createElement('div');
@@ -551,7 +740,7 @@
                         </div>
                         <div class="person-info">👤 ${loan.person}</div>
                         <div class="date-info">📅 ${loan.loanDate}</div>
-                        <button class="return-button" onclick="returnKey(${loan.key}); showActiveLoans();">🔄 Devolver</button>
+                        <button class="return-button" onclick="returnKeyFromReport(${loan.key})">🔄 Devolver</button>
                     `;
                     content.appendChild(item);
                 });
@@ -560,6 +749,12 @@
             section.style.display = 'block';
             section.scrollIntoView({ behavior: 'smooth' });
         }
+
+        // Devolver llave desde el reporte
+        window.returnKeyFromReport = async function(keyNumber) {
+            await returnKey(keyNumber);
+            showActiveLoans(); // Refrescar la vista
+        };
 
         // Mostrar histórico
         function showHistory() {
@@ -579,14 +774,8 @@
                 content.innerHTML = '<div class="report-item"><span>📚 No hay registros en el histórico aún</span></div>';
                 return;
             }
-
-            const sortedHistory = [...loanHistory].sort((a, b) => {
-                const dateA = new Date(a.loanDate.split(', ').reverse().join(' '));
-                const dateB = new Date(b.loanDate.split(', ').reverse().join(' '));
-                return dateB - dateA;
-            });
             
-            sortedHistory.forEach(record => {
+            loanHistory.forEach(record => {
                 const item = document.createElement('div');
                 item.className = 'report-item';
                 
@@ -610,7 +799,7 @@
         }
 
         // Filtrar histórico
-        function filterHistory() {
+        window.filterHistory = function() {
             const search = document.getElementById('historySearch').value.toLowerCase();
             const items = document.querySelectorAll('#historyContent .report-item');
             
@@ -621,7 +810,7 @@
                     item.style.display = 'none';
                 }
             });
-        }
+        };
 
         // Ocultar todos los reportes
         function hideAllReports() {
@@ -630,10 +819,10 @@
         }
 
         // Cerrar modal
-        function closeModal() {
+        window.closeModal = function() {
             document.getElementById('personModal').style.display = 'none';
             document.getElementById('personSearch').value = '';
-        }
+        };
 
         // Cerrar modal al hacer clic fuera
         window.onclick = function(event) {
@@ -641,33 +830,21 @@
             if (event.target === modal) {
                 closeModal();
             }
-        }
-
-        // Guardar datos en localStorage
-        function saveData() {
-            const data = {
-                keyStatus: keyStatus,
-                loanHistory: loanHistory
-            };
-            // Simular guardado - en producción usar localStorage
-            console.log('Datos guardados:', data);
-        }
-
-        // Cargar datos de localStorage
-        function loadData() {
-            // Simular carga - en producción usar localStorage
-            // Actualizar botones según el estado cargado
-            Object.keys(keyStatus).forEach(keyNumber => {
-                updateKeyButton(parseInt(keyNumber));
-            });
-        }
+        };
 
         // Exportar datos
-        function exportData() {
+        window.exportData = function() {
+            if (!isConnected) {
+                showNotification('No hay conexión a internet. Intenta más tarde.', 'error');
+                return;
+            }
+
             const data = {
                 prestamosActivos: keyStatus,
                 historico: loanHistory,
-                fechaExportacion: new Date().toLocaleString('es-ES')
+                fechaExportacion: new Date().toLocaleString('es-ES'),
+                totalLlavesDisponibles: 250 - Object.keys(keyStatus).length,
+                totalLlavesPrestadas: Object.keys(keyStatus).length
             };
             
             const dataStr = JSON.stringify(data, null, 2);
@@ -679,8 +856,8 @@
             link.download = `prestamos_llaves_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             
-            showNotification('Datos exportados exitosamente', 'success');
-        }
+            showNotification('📊 Datos exportados exitosamente', 'success');
+        };
 
         // Mostrar notificaciones
         function showNotification(message, type) {
@@ -695,18 +872,101 @@
                 border-radius: 10px;
                 z-index: 10000;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                animation: slideIn 0.3s ease;
+                animation: slideInRight 0.3s ease;
+                max-width: 300px;
+                word-wrap: break-word;
             `;
+            
+            // Agregar animación CSS
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
             notification.textContent = message;
             document.body.appendChild(notification);
             
+            // Agregar funcionalidad de click para cerrar
+            notification.addEventListener('click', () => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            });
+            
             setTimeout(() => {
-                notification.remove();
-            }, 3000);
+                if (notification.parentNode) {
+                    notification.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+
+        // Hacer funciones globales
+        window.showActiveLoans = showActiveLoans;
+        window.showHistory = showHistory;
+        window.openPersonModal = openPersonModal;
+        window.filterPersons = filterPersons;
+
+        // Monitoreo de conexión a internet
+        function setupConnectionMonitoring() {
+            window.addEventListener('online', () => {
+                showNotification('🟢 Conexión restaurada', 'success');
+                updateConnectionStatus(true);
+            });
+
+            window.addEventListener('offline', () => {
+                showNotification('🔴 Sin conexión a internet', 'error');
+                updateConnectionStatus(false);
+            });
         }
 
         // Inicializar aplicación al cargar la página
-        window.onload = initApp;
+        window.addEventListener('load', () => {
+            initApp();
+            setupConnectionMonitoring();
+            
+            // Limpiar historial antiguo cada 24 horas
+            setInterval(cleanOldHistory, 24 * 60 * 60 * 1000);
+        });
+
+        // Manejar errores globales
+        window.addEventListener('error', (event) => {
+            console.error('Error global:', event.error);
+            showNotification('Ocurrió un error inesperado. Recarga la página si persiste.', 'error');
+        });
+
+        // Prevenir cierre accidental de la página si hay cambios pendientes
+        window.addEventListener('beforeunload', (event) => {
+            if (!isConnected && Object.keys(keyStatus).length > 0) {
+                event.preventDefault();
+                event.returnValue = '';
+                return 'Hay cambios que podrían perderse. ¿Estás seguro de salir?';
+            }
+        });
+
+        // Función para reintentar conexión
+        async function retryConnection() {
+            try {
+                await initApp();
+            } catch (error) {
+                setTimeout(retryConnection, 5000);
+            }
+        }
+
+        // Auto-reconexión en caso de pérdida de conexión
+        setInterval(() => {
+            if (!isConnected && navigator.onLine) {
+                retryConnection();
+            }
+        }, 10000);
+
     </script>
 </body>
 </html>
