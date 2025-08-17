@@ -308,6 +308,40 @@
             color: #666;
         }
 
+        .locations-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .location-item {
+            background: white;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-left: 4px solid #4facfe;
+        }
+
+        .location-number {
+            background: #4facfe;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .location-name {
+            flex: 1;
+            color: #333;
+            font-weight: 500;
+        }
+
         @media (max-width: 768px) {
             .keys-grid {
                 grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
@@ -369,24 +403,17 @@
                 <input type="text" class="search-box" id="historySearch" placeholder="Buscar en histórico..." onkeyup="filterHistory()">
                 <div id="historyContent"></div>
             </div>
+
+            <div class="report-section" id="locationsSection">
+                <h3 class="report-title">📍 Ubicaciones de Llaves</h3>
+                <input type="text" class="search-box" id="locationSearch" placeholder="Buscar por número o ubicación..." onkeyup="filterLocations()">
+                <div class="locations-list" id="locationsContent"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Modal para ubicaciones -->
-    <div id="locationsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>📍 Ubicaciones de Llaves</h2>
-                <span class="close" onclick="closeLocationsModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <input type="text" class="search-box" id="locationSearch" placeholder="Buscar ubicación o número de llave..." onkeyup="filterLocations()">
-                <div id="locationsContent">
-                    <!-- Las ubicaciones se generarán aquí -->
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Modal para selección de persona -->
+    <div id="personModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Seleccionar Persona</h2>
@@ -1057,6 +1084,50 @@
             });
         }
 
+        // Mostrar ubicaciones
+        function showLocations() {
+            hideAllReports();
+            const section = document.getElementById('locationsSection');
+            const content = document.getElementById('locationsContent');
+            
+            content.innerHTML = '';
+            
+            // Crear lista de ubicaciones ordenadas por número
+            const sortedLocations = Object.keys(locations).sort((a, b) => {
+                const numA = parseFloat(a);
+                const numB = parseFloat(b);
+                return numA - numB;
+            });
+            
+            sortedLocations.forEach(keyNumber => {
+                const item = document.createElement('div');
+                item.className = 'location-item';
+                item.innerHTML = `
+                    <div class="location-number">${keyNumber}</div>
+                    <div class="location-name">${locations[keyNumber]}</div>
+                `;
+                content.appendChild(item);
+            });
+            
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Filtrar ubicaciones
+        window.filterLocations = function() {
+            const search = document.getElementById('locationSearch').value.toLowerCase();
+            const items = document.querySelectorAll('#locationsContent .location-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(search)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        };
+
         // Filtrar histórico
         window.filterHistory = function() {
             const search = document.getElementById('historySearch').value.toLowerCase();
@@ -1075,6 +1146,7 @@
         function hideAllReports() {
             document.getElementById('activeLoansSection').style.display = 'none';
             document.getElementById('historySection').style.display = 'none';
+            document.getElementById('locationsSection').style.display = 'none';
         }
 
         // Cerrar modal
@@ -1085,95 +1157,11 @@
 
         // Cerrar modal al hacer clic fuera
         window.onclick = function(event) {
-            const personModal = document.getElementById('personModal');
-            const locationsModal = document.getElementById('locationsModal');
-            
-            if (event.target === personModal) {
+            const modal = document.getElementById('personModal');
+            if (event.target === modal) {
                 closeModal();
-            } else if (event.target === locationsModal) {
-                closeLocationsModal();
             }
         };
-
-        // Mostrar ubicaciones
-        function showLocations() {
-            const modal = document.getElementById('locationsModal');
-            const content = document.getElementById('locationsContent');
-            
-            content.innerHTML = '';
-            
-            // Crear lista de ubicaciones ordenadas por número
-            const sortedLocations = Object.keys(locations).sort((a, b) => {
-                const numA = parseFloat(a);
-                const numB = parseFloat(b);
-                return numA - numB;
-            });
-            
-            sortedLocations.forEach(keyNumber => {
-                const item = document.createElement('div');
-                item.className = 'report-item';
-                
-                // Verificar si la llave está prestada
-                const isLoaned = keyStatus[keyNumber];
-                const statusClass = isLoaned ? 'status-loaned' : 'status-available';
-                const statusText = isLoaned ? `Prestada a: ${keyStatus[keyNumber].person}` : 'Disponible';
-                const statusIcon = isLoaned ? '🔒' : '🔓';
-                
-                item.innerHTML = `
-                    <div>
-                        <span class="key-info">${statusIcon} Llave ${keyNumber}</span>
-                        <span class="status-indicator ${statusClass}"></span>
-                    </div>
-                    <div class="person-info">📍 ${locations[keyNumber]}</div>
-                    <div class="date-info">${statusText}</div>
-                `;
-                
-                // Si está prestada, agregar botón para abrir modal de persona
-                if (isLoaned) {
-                    const actionButton = document.createElement('button');
-                    actionButton.className = 'return-button';
-                    actionButton.textContent = '👁️ Ver';
-                    actionButton.onclick = () => {
-                        closeLocationsModal();
-                        openPersonModal(parseInt(keyNumber));
-                    };
-                    item.appendChild(actionButton);
-                }
-                
-                content.appendChild(item);
-            });
-            
-            modal.style.display = 'block';
-        }
-
-        // Filtrar ubicaciones
-        window.filterLocations = function() {
-            const search = document.getElementById('locationSearch').value.toLowerCase();
-            const items = document.querySelectorAll('#locationsContent .report-item');
-            
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(search)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        };
-
-        // Cerrar modal de ubicaciones
-        window.closeLocationsModal = function() {
-            document.getElementById('locationsModal').style.display = 'none';
-            document.getElementById('locationSearch').value = '';
-            // Mostrar todos los elementos de nuevo
-            const items = document.querySelectorAll('#locationsContent .report-item');
-            items.forEach(item => {
-                item.style.display = 'flex';
-            });
-        };
-
-        // Hacer función global
-        window.showLocations = showLocations;
 
         // Mostrar notificaciones
         function showNotification(message, type) {
@@ -1227,6 +1215,7 @@
         // Hacer funciones globales
         window.showActiveLoans = showActiveLoans;
         window.showHistory = showHistory;
+        window.showLocations = showLocations;
         window.openPersonModal = openPersonModal;
         window.filterPersons = filterPersons;
 
