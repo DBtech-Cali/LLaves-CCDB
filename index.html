@@ -317,8 +317,6 @@
             <button class="control-btn" onclick="showActiveLoans()">📋 Préstamos Activos</button>
             <button class="control-btn" onclick="showHistory()">📚 Histórico Completo</button>
             <button class="control-btn" onclick="exportData()">💾 Exportar Datos</button>
-            <button class="control-btn" onclick="showFirebaseStatus()" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">☁️ Estado Nube</button>
-            <button class="control-btn" onclick="syncNow()" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);">🔄 Sincronizar</button>
         </div>
 
         <div class="main-content">
@@ -356,23 +354,15 @@
     </div>
 
     <script>
-        // Configuración de JSONBin.io - YA CONFIGURADO ✅
-        const JSONBIN_CONFIG = {
-            BIN_ID: '689bb48ad0ea881f4057ad68',
-            API_KEY: '$2a$10$uz/rJCmZtow3nmiibDZyBeabXdzuwfznWCv27HhQapE614kCw7cNm',
-            BASE_URL: 'https://api.jsonbin.io/v3/b/'
-        };
-
         // Datos del sistema
         let keyStatus = {}; // {keyNumber: {person: string, loanDate: string, returnDate: null}}
         let loanHistory = []; // Histórico completo de préstamos
         let currentKey = null;
-        let isCloudConfigured = true; // ✅ YA ESTÁ CONFIGURADO
 
         // Lista de 50 personas
         const persons = [
-            "Lina Giraldo", "Mayerli Tenorio", "Linda Betancourt", "Maria del Pilar Ruiz", "Giselly Balanta",
-            "Sandra Rodriguez", "Miguel Baena", "Francisco Ruiz", "Isabel Moreno", "Antonio Muñoz",
+            "Ana García", "Carlos López", "María González", "José Martínez", "Laura Rodríguez",
+            "Pedro Sánchez", "Carmen Jiménez", "Francisco Ruiz", "Isabel Moreno", "Antonio Muñoz",
             "Rosa Álvarez", "Manuel Romero", "Pilar Navarro", "Ángel Torres", "Dolores Domínguez",
             "Rafael Vázquez", "Mercedes Ramos", "Ignacio Gil", "Concepción Serrano", "Ramón Blanco",
             "Teresa Molina", "Enrique Castro", "Josefa Ortega", "Alejandro Rubio", "Francisca Delgado",
@@ -653,111 +643,23 @@
             }
         }
 
-        // Verificar si JSONBin está configurado
-        function checkCloudConfig() {
-            // Ya está configurado con tus datos reales ✅
-            isCloudConfigured = true;
-            
-            console.log('✅ Nube configurada correctamente');
-            return isCloudConfigured;
-        }
-
-        // Guardar datos en la nube o localStorage
-        async function saveData() {
+        // Guardar datos en localStorage
+        function saveData() {
             const data = {
                 keyStatus: keyStatus,
-                loanHistory: loanHistory,
-                lastUpdate: new Date().toISOString()
+                loanHistory: loanHistory
             };
-            
-            // Siempre guardar localmente primero (backup)
-            localStorage.setItem('keyLoanSystem', JSON.stringify(data));
-            
-            if (checkCloudConfig()) {
-                try {
-                    const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}${JSONBIN_CONFIG.BIN_ID}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Master-Key': JSONBIN_CONFIG.API_KEY
-                        },
-                        body: JSON.stringify(data)
-                    });
-                    
-                    if (response.ok) {
-                        console.log('✅ Datos guardados en la nube');
-                        showNotification('☁️ Datos sincronizados en la nube', 'success');
-                    } else {
-                        throw new Error('Error al guardar en la nube');
-                    }
-                } catch (error) {
-                    console.error('❌ Error guardando en la nube:', error);
-                    showNotification('⚠️ Error de conexión. Datos guardados localmente.', 'warning');
-                }
-            } else {
-                console.log('💾 Datos guardados localmente');
-            }
+            // Simular guardado - en producción usar localStorage
+            console.log('Datos guardados:', data);
         }
 
-        // Cargar datos de la nube o localStorage
-        async function loadData() {
-            if (checkCloudConfig()) {
-                try {
-                    const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}${JSONBIN_CONFIG.BIN_ID}/latest`, {
-                        method: 'GET',
-                        headers: {
-                            'X-Master-Key': JSONBIN_CONFIG.API_KEY
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const result = await response.json();
-                        const data = result.record || {};
-                        
-                        keyStatus = data.keyStatus || {};
-                        loanHistory = data.loanHistory || [];
-                        
-                        // Actualizar botones según el estado cargado
-                        Object.keys(keyStatus).forEach(keyNumber => {
-                            updateKeyButton(parseInt(keyNumber));
-                        });
-                        
-                        console.log('✅ Datos cargados desde la nube');
-                        showNotification('🔄 Datos sincronizados desde la nube', 'success');
-                        return;
-                    }
-                } catch (error) {
-                    console.error('❌ Error cargando desde la nube:', error);
-                    showNotification('⚠️ Error de conexión. Cargando datos locales.', 'warning');
-                }
-            }
-            
-            // Cargar datos locales como fallback
-            loadLocalData();
-        }
-
-        // Cargar datos locales
-        function loadLocalData() {
-            const savedData = localStorage.getItem('keyLoanSystem');
-            if (savedData) {
-                try {
-                    const data = JSON.parse(savedData);
-                    keyStatus = data.keyStatus || {};
-                    loanHistory = data.loanHistory || [];
-                    
-                    // Actualizar botones según el estado cargado
-                    Object.keys(keyStatus).forEach(keyNumber => {
-                        updateKeyButton(parseInt(keyNumber));
-                    });
-                    
-                    console.log('💾 Datos cargados localmente');
-                    showNotification('💾 Datos cargados localmente', 'info');
-                } catch (error) {
-                    console.error('Error cargando datos locales:', error);
-                }
-            } else {
-                console.log('📭 No hay datos guardados');
-            }
+        // Cargar datos de localStorage
+        function loadData() {
+            // Simular carga - en producción usar localStorage
+            // Actualizar botones según el estado cargado
+            Object.keys(keyStatus).forEach(keyNumber => {
+                updateKeyButton(parseInt(keyNumber));
+            });
         }
 
         // Exportar datos
@@ -781,68 +683,30 @@
         }
 
         // Mostrar notificaciones
-        function showNotification(message, type = 'success') {
+        function showNotification(message, type) {
             const notification = document.createElement('div');
-            const colors = {
-                success: '#10ac84',
-                error: '#ff6b6b',
-                warning: '#f39c12',
-                info: '#3498db'
-            };
-            
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                background: ${colors[type] || colors.success};
+                background: ${type === 'success' ? '#10ac84' : '#ff6b6b'};
                 color: white;
                 padding: 15px 25px;
                 border-radius: 10px;
                 z-index: 10000;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.2);
                 animation: slideIn 0.3s ease;
-                max-width: 300px;
-                word-wrap: break-word;
             `;
-            notification.innerHTML = message;
+            notification.textContent = message;
             document.body.appendChild(notification);
             
             setTimeout(() => {
                 notification.remove();
-            }, type === 'warning' ? 5000 : 3000);
-        }
-
-        // Mostrar estado de la nube
-        function showFirebaseStatus() {
-            const statusMessage = '✅ Nube configurada correctamente\n☁️ Datos sincronizados automáticamente\n🌐 Accesible desde cualquier dispositivo\n\n📊 Detalles:\n• Servicio: JSONBin.io\n• BIN ID: 689baf...aaf5\n• Estado: Activo\n• Sincronización: Cada 30 segundos';
-            
-            alert(statusMessage);
-            
-            console.log('%c☁️ CONFIGURACIÓN COMPLETADA:', 'color: #2ecc71; font-size: 16px; font-weight: bold;');
-            console.log('%c✅ JSONBin configurado correctamente', 'color: #2ecc71;');
-            console.log('%c🔄 Sincronización automática activa', 'color: #2ecc71;');
-            console.log('%c🌐 Datos accesibles desde cualquier dispositivo', 'color: #2ecc71;');
-        }
-
-        // Función para sincronizar manualmente
-        async function syncNow() {
-            showNotification('🔄 Sincronizando desde la nube...', 'info');
-            await loadData();
+            }, 3000);
         }
 
         // Inicializar aplicación al cargar la página
-        window.onload = function() {
-            initApp();
-            // Cargar datos después de un pequeño delay
-            setTimeout(loadData, 500);
-            
-            // Auto-sincronizar cada 30 segundos si está configurado
-            setInterval(() => {
-                if (isCloudConfigured) {
-                    loadData();
-                }
-            }, 30000);
-        };
+        window.onload = initApp;
     </script>
 </body>
 </html>
